@@ -1,0 +1,106 @@
+name: RodyPlugins
+
+packages:
+  - packages/**
+
+ignore:
+  # TODO Excluded pending CI fixes
+  # - app_review
+
+scripts:
+  lint:all:
+    run: flutter pub global run melos run analyze && flutter pub global run melos run format
+    description: Run all static analysis checks
+
+  analyze:
+    run: |
+      flutter pub global run melos exec -c 5 -- \
+        flutter analyze . --fatal-infos
+    description: |
+      Run `flutter analyze` in all packages.
+       - Note: you can also rely on your IDEs Dart Analysis / Issues window.
+  format:
+    run: flutter pub global run flutter_plugin_tools format
+    description: |
+      Build a specific example app for Android.
+       - Requires `flutter_plugin_tools` (`pub global activate flutter_plugin_tools`).
+       - Requires `clang-format` (can be installed via Brew on macOS).
+
+  build:all:
+    run: |
+      flutter pub global run melos run build:example_web --no-select && flutter pub global run melos bootstrap
+    description: Build all example apps (currently web requires flutter channel master)
+  
+  refresh:
+    run: |
+      flutter pub global run melos exec -c 1 -- \
+        flutter packages upgrade
+    description: Get all the packages
+
+  build:example_web:
+    run: |
+      flutter pub global run melos exec -c 6 --fail-fast -- \
+        "flutter build web"
+    description: Build a specific example app for web.
+    select-package:
+      dir-exists:
+        - web
+      scope: "*example*"
+
+  test:all:
+    run: flutter pub global run melos run test --no-select
+    description: Run all tests available on stable channel
+
+  test:
+    run: |
+      flutter pub global run melos exec -c 6 --fail-fast -- \
+        "flutter test --no-pub"
+    description: Run `flutter test` for a specific package.
+    select-package:
+      dir-exists:
+        - test
+      ignore:
+        - "*web*"
+        - "*example*"
+
+  test:web:
+    run: |
+      flutter pub global run melos exec -c 1 --fail-fast -- \
+        "flutter test --no-pub --platform=chrome"
+    description: Run `flutter test --platform=chrome` for a specific '*web' package.
+    select-package:
+      dir-exists:
+        - test
+      scope: "*web*"
+
+  test:web_e2e:
+    run: |
+      flutter pub global run melos exec -c 1 --fail-fast -- \
+        "flutter drive --device-id=web-server --no-pub --target=./test_driver/flutter pub global run melos_PARENT_PACKAGE_NAME_e2e.dart"
+    description: |
+      Run all Web test driver e2e tests in a specific example app.
+       - Requires `flutter channel master` (or beta).
+       - Requires `flutter config --enable-web` set.
+       - Requires chromedriver running on port 4444.
+    select-package:
+      dir-exists:
+        - web
+        - test_driver
+      scope: "*example*"
+
+  # Clean things very deeply, can be used to establish "pristine checkout" status
+  clean:deep: >
+    git clean -x -d -f -q
+
+  # Additional cleanup lifecycle script, executed when `flutter pub global run melos clean` is ran.
+  postclean: >
+    flutter pub global run melos exec -c 6 -- "flutter clean"
+  # Run all targets generally expected in CI for a full local quality check
+  qualitycheck: >
+    flutter pub global run melos run clean:deep && flutter pub global run melos clean && flutter pub global run melos bootstrap && flutter pub global run melos run lint:all && flutter pub global run melos run build:all && flutter pub global run melos run test:all
+dev_dependencies:
+  pedantic: 1.8.0
+
+environment:
+  sdk: ">=2.12.0 <3.0.0"
+  flutter: ">=2.13.0 <3.0.0"
